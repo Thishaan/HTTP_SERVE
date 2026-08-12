@@ -1,6 +1,47 @@
 #include "http_server.hpp"
 
 
+std::string handle_get() {
+    std::string body =
+        "<html><body>Hello!</body></html>";
+
+    return
+        "HTTP/1.1 200 OK\r\n"
+        "Server: MyCppServer\r\n"
+        "Content-Type: text/html\r\n"
+        "Content-Length: " + std::to_string(body.size()) + "\r\n"
+        "Connection: close\r\n"
+        "\r\n" +
+        body;
+}
+
+
+std::string handle_post() {
+    std::string body = "Resource created";
+
+    return
+        "HTTP/1.1 201 Created\r\n"
+        "Server: MyCppServer\r\n"
+        "Content-Type: text/html\r\n"
+        "Content-Length: " + std::to_string(body.size()) + "\r\n"
+        "Connection: close\r\n"
+        "\r\n" +
+        body;
+}
+
+
+std::string handle_put() {
+    std::string body = "Resource updated";
+
+    return
+        "HTTP/1.1 200 OK\r\n"
+        "Server: MyCppServer\r\n"
+        "Content-Type: text/plain\r\n"
+        "Content-Length: " + std::to_string(body.size()) + "\r\n"
+        "Connection: close\r\n"
+        "\r\n" +
+        body;
+}
 
 
 http_server::http_server(int port)
@@ -46,45 +87,50 @@ http_server::~http_server(){
  std::cout << "destroying objects" << std::endl;
 }
 
-void http_server::handleClient(int client_fd) {
-
+void http_server::handleClient(int client_fd)
+{
     char buffer[4096]{};
 
-    ssize_t bytes = recv(
+    ssize_t bytes_received = recv(
         client_fd,
         buffer,
         sizeof(buffer) - 1,
         0
     );
 
-    if (bytes <= 0) {
+    if (bytes_received <= 0) {
         close(client_fd);
         return;
     }
 
-    std::string request(buffer, bytes);
-
-    std::istringstream stream(request);
+    std::string raw_request(buffer, bytes_received);
+    std::istringstream request_stream(raw_request);
 
     std::string method;
     std::string path;
     std::string version;
 
-    stream >> method >> path >> version;
+    request_stream >> method >> path >> version;
+    //std::string body;
+    std::transform(method.begin(), method.end(), method.begin(),
+    [](unsigned char c){ return std::toupper(c); });
 
-    std::cout << "Method: " << method << '\n';
-    std::cout << "Path: " << path << '\n';
-    std::cout << "Version: " << version << '\n';
+    std::string status, response;
+    
 
-    // create response
-    std::string resp =
-        "HTTP/1.1 200 OK\r\n"
-        "Content-Type: text/plain\r\n"
-        "Content-Length: 5\r\n"
-        "\r\n"
-        "Hello";
-
-    send(client_fd, resp.data(), resp.size(), 0);
+    if(cmd_handler[method]){
+        response =  cmd_handler[method](client_fd);
+    }
+    else{
+        send(
+        client_fd,
+        response.data(),
+        response.size(),
+        0
+        );
+        
+    }
+    
 
     close(client_fd);
 }
