@@ -23,7 +23,6 @@ std::optional<int> http_server::setupSocket() {
 
     if(bind(server_fd, (sockaddr*)&server, sizeof(server)) < 0){
         exit(2);
- 
     }
 
 
@@ -44,24 +43,49 @@ std::optional<int> http_server::setupSocket() {
 
 http_server::~http_server(){
 
-
+ std::cout << "destroying objects" << std::endl;
 }
-
 
 void http_server::handleClient(int client_fd) {
 
-    std::string buffer[3];
-    // recv request
-    recv(client_fd, &buffer, sizeof(buffer), 0);
+    char buffer[4096]{};
 
+    ssize_t bytes = recv(
+        client_fd,
+        buffer,
+        sizeof(buffer) - 1,
+        0
+    );
 
-    // parse request
-    
+    if (bytes <= 0) {
+        close(client_fd);
+        return;
+    }
+
+    std::string request(buffer, bytes);
+
+    std::istringstream stream(request);
+
+    std::string method;
+    std::string path;
+    std::string version;
+
+    stream >> method >> path >> version;
+
+    std::cout << "Method: " << method << '\n';
+    std::cout << "Path: " << path << '\n';
+    std::cout << "Version: " << version << '\n';
+
     // create response
-    // send response
+    std::string resp =
+        "HTTP/1.1 200 OK\r\n"
+        "Content-Type: text/plain\r\n"
+        "Content-Length: 5\r\n"
+        "\r\n"
+        "Hello";
 
-    close(server_fd);
-    // close client
+    send(client_fd, resp.data(), resp.size(), 0);
+
     close(client_fd);
 }
 
